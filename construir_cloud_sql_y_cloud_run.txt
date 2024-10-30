@@ -1,0 +1,66 @@
+Resumen de actividad de construcción de la "appdata-stg" y su BD en Cloud SQL:
+##############################################################################
+
+gcloud sql instances create olenbee-postgres-stg \
+    --database-version=POSTGRES_14 \
+    --tier=db-f1-micro \
+    --region=europe-west9 \
+    --no-assign-ip \
+    --network=projects/central-apex-438817-p5/global/networks/vpn-net-olenbee \
+    --availability-type=REGIONAL \
+    --root-password="<Clave de usuario administrador de postgres>" && \
+gcloud sql databases create olenbeeappdata_stg --instance=olenbee-postgres-stg && \
+gcloud sql users create postgres --instance=olenbee-postgres-stg --password="<Clave de usuario postgres>"
+
+
+Dockerfile:
+===========
+
+  FROM openjdk:17-jdk-alpine
+
+  # Download Cloud SQL Proxy
+  ADD https://dl.google.com/cloudsql/cloud_sql_proxy.linux.amd64 /cloud_sql_proxy
+
+  # Make the Cloud SQL Proxy executable
+  RUN chmod +x /cloud_sql_proxy
+
+  # Copy the JAR file into the container
+  COPY settings/appdata-stg.jar /appdata-stg.jar
+
+  # Create a directory for Cloud SQL sockets
+  RUN mkdir -p /cloudsql
+
+  EXPOSE 8080
+
+  # Comandos que serán ejecutado en la secuencia de arranque del contenedor.
+  # Incluye el arranque de Cloud SQL Proxy y la aplicación
+  ENTRYPOINT ["/bin/sh", "-c", "/cloud_sql_proxy -dir=/cloudsql -instances=central-apex-438817-p5:europe-west9:olenbeeappdata-stg=tcp:5432 & java -jar /appdata-stg.jar --   spring.profiles.active=stg"]
+
+
+Comando de construcción de la imagen de la aplicación:
+======================================================
+ docker build -t gcr.io/central-apex-438817-p5/appdata-stg:latest
+
+
+Comando de despliegue:
+======================
+ docker push gcr.io/central-apex-438817-p5/appdata-stg:latest
+
+
+Comando de despliegue de la instancia de cloud run:
+===================================================
+gcloud run deploy tomcat-app \
+  --image gcr.io/central-apex-438817-p5/ms-appdata-stg:latest
+  --platform managed \
+  --region europe-west9 \
+  --allow-unauthenticated \
+  --vpc-connector vpn-net-olenbee \
+  --vpc-egress all-traffic \
+  --service-account clourun-olenbee@central-apex-438817-p5.iam.gserviceaccount.com \
+  --add-cloudsql-instances central-apex-438817-p5:europe-west9:olenbeedata-stg \
+  --port 9090
+
+
+
+
+

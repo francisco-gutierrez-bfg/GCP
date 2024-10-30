@@ -1,0 +1,32 @@
+name: Deploy GKE Cluster
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  terraform:
+    name: Apply Terraform Configuration
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Set up Google Cloud SDK
+        uses: google-github-actions/setup-gcloud@v1
+        with:
+          service_account_key: ${{ secrets.GCP_CREDENTIALS }}
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+
+      - name: Install Terraform
+        uses: hashicorp/setup-terraform@v1
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Terraform Apply
+        run: terraform apply -auto-approve
+        env:
+          GOOGLE_CREDENTIALS: ${{ secrets.GCP_CREDENTIALS }}
