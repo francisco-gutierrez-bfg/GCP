@@ -1,0 +1,158 @@
+Resumen de actividad de construcción de la "appdata-stg" y su BD en Cloud SQL:
+##############################################################################
+
+gcloud sql instances create olenbee-postgres-stg \
+    --database-version=POSTGRES_14 \
+    --tier=db-f1-micro \
+    --region=europe-west9 \
+    --no-assign-ip \
+    --network=projects/central-apex-438817-p5/global/networks/vpn-net-olenbee \
+    --availability-type=REGIONAL \
+    --root-password="<Clave de usuario administrador de postgres>" && \
+gcloud sql databases create olenbeeappdata_stg --instance=olenbee-postgres-stg && \
+gcloud sql users create postgres --instance=olenbee-postgres-stg --password="<Clave de usuario postgres>"
+
+
+Dockerfile:
+===========
+
+  FROM openjdk:17-jdk-alpine
+
+  # Download Cloud SQL Proxy
+  ADD https://dl.google.com/cloudsql/cloud_sql_proxy.linux.amd64 /cloud_sql_proxy
+
+  # Make the Cloud SQL Proxy executable
+  RUN chmod +x /cloud_sql_proxy
+  
+  # Despliegue de la app dentro del contenedor
+  # Copiar el JAR de la app en el contenedor (El jar es porque la app esta construida en Java pero puede ser cualquier otra)
+  COPY settings/appdata-stg.jar /appdata-stg.jar
+
+  # Create a directory for Cloud SQL sockets
+  RUN mkdir -p /cloudsql
+
+  EXPOSE 8080
+
+  # Comandos que serán ejecutado en la secuencia de arranque del contenedor.
+  # Incluye el arranque de Cloud SQL Proxy y la aplicación
+  ENTRYPOINT ["/bin/sh", "-c", "/cloud_sql_proxy -dir=/cloudsql -instances=central-apex-438817-p5:europe-west9:olenbeeappdata-stg=tcp:5432 & java -jar /appdata-stg.jar --   spring.profiles.active=stg"]
+
+
+Comando de construcción de la imagen de la aplicación:
+======================================================
+ docker build . -t gcr.io/central-apex-438817-p5/appdata-stg:latest
+
+
+Comando de despliegue:
+======================
+ docker push gcr.io/central-apex-438817-p5/appdata-stg:latest
+
+
+Comando de despliegue de la instancia de cloud run:
+===================================================
+gcloud run deploy tomcat-app \
+  --image gcr.io/central-apex-438817-p5/ms-appdata-stg:latest
+  --platform managed \
+  --region europe-west9 \
+  --allow-unauthenticated \  # <-- opcional en caso de que deseen acceder si n restricciones
+  --vpc-connector vpn-net-olenbee \
+  --vpc-egress all-traffic \
+  --service-account clourun-olenbee@central-apex-438817-p5.iam.gserviceaccount.com \
+  --add-cloudsql-instances central-apex-438817-p5:europe-west9:olenbeedata-stg \
+  --port 9090
+
+En caso de necesitar un token de GCP:
+-------------------------------------
+gcloud auth print-access-token
+
+Roles aplicados:
+----------------
+
+Dar permissos para acceder Cloud SQL:
+Nota:
+Las service accounts pueden denominarse diferente dependiendo de cada proyecto.
+
+gcloud projects add-iam-policy-binding central-apex-438817-p5 --member="serviceAccount:admin@olenbee.com" --role="roles/cloudsql.client"
+gcloud projects add-iam-policy-binding central-apex-438817-p5 --member="serviceAccount:112614494687-compute@developer.gserviceaccount.com" --role="roles/cloudsql.client"
+gcloud projects add-iam-policy-binding central-apex-438817-p5 --member=serviceAccount:112614494687-compute@developer.gserviceaccount.com --role=cloudsql.instanceUser
+gcloud projects add-iam-policy-binding central-apex-438817-p5 --member=serviceAccount:112614494687-compute@developer.gserviceaccount.com --role=roles/cloudsql.instanceUser
+
+
+
+Ese paso es opcional en caso de que deseen que la app sea alcanzable sin restricciones de acceso. (allow-unauthenticated):
+==========================================================================================================================
+Asignar role de cloud invoker para asignar permisos de autenticación a una instancia de cloud run:
+
+gcloud projects add-iam-policy-binding central-apex-438817 --member="serviceAccount:clourun-olenbee@central-apex-438817-p5.iam.gserviceaccount.com" --role="roles/run.invoker"
+
+gcloud projects add-iam-policy-binding central-apex-438817-p5 --member=clourun-olenbee@central-apex-438817-p5.iam.gserviceaccount.com --role=roles/run.invoker  --condition="expression=resource attributes, title=unauthenticated access to appdata-stg, description=allow unauhtenticated requests"
+
+Asignar permisos de policy admin:
+gcloud projects add-iam-policy-binding central-apex-438817-p5 --member='user:admininfra1@olenbee.com' --role='roles/orgpolicy.policyAdmin'
+
+Asignar a una cuenta de GCP los roles especificos para administrar componentes:
+
+Ejemplo:
+Desde el cloud shell del proyecto deseado....
+Crear un script con el siguiente contenido y agregar permisos de ejecución (chmod +x script.sh)
+
+Script:
+-------
+
+#!/bin/bash
+
+PROJECT_ID="central-apex-438817-p5"
+USER_ACCOUNT="admin@olenbee.com"
+
+gcloud projects add-iam-policy-binding $PROJECT_ID \
+  --member="user:$USER_ACCOUNT" \
+  --role="roles/advisorynotifications.viewer"
+
+gcloud projects add-iam-policy-binding $PROJECT_ID \
+  --member="user:$USER_ACCOUNT" \
+  --role="roles/run.admin"
+
+gcloud projects add-iam-policy-binding $PROJECT_ID \
+  --member="user:$USER_ACCOUNT" \
+  --role="roles/run.invoker"
+
+gcloud projects add-iam-policy-binding $PROJECT_ID \
+  --member="user:$USER_ACCOUNT" \
+  --role="roles/editor"
+
+gcloud organizations add-iam-policy-binding YOUR_ORG_ID \
+  --member="user:$USER_ACCOUNT" \
+  --role="roles/resourcemanager.organizationAdmin"
+
+gcloud projects add-iam-policy-binding $PROJECT_ID \
+  --member="user:$USER_ACCOUNT" \
+  --role="roles/owner"
+
+gcloud projects add-iam-policy-binding $PROJECT_ID \
+  --member="user:$USER_ACCOUNT" \
+  --role="roles/resourcemanager.projectIamAdmin"
+
+gcloud projects add-iam-policy-binding $PROJECT_ID \
+  --member="user:$USER_ACCOUNT" \
+  --role="roles/compute.admin"
+
+gcloud organizations add-iam-policy-binding YOUR_ORG_ID \
+  --member="user:$USER_ACCOUNT" \
+  --role="roles/resourcemanager.organizationAdmin"
+
+gcloud projects add-iam-policy-binding $PROJECT_ID \
+  --member="user:$USER_ACCOUNT" \
+  --role="roles/compute.networkAdmin"
+---
+
+En el Dockerfile:
+=================
+
+# Configurar el entorno deseado
+# Puedes cambiar "Staging" por otro entorno si lo deseas
+ENV ASPNETCORE_ENVIRONMENT=${AMBIENTE} 
+
+
+Desde GH Actions:
+=================
+ docker build --build-arg AMBIENTE=Staging -t gcr.io/${{ env.GCP_PROJECT_ID }}/${{ env.IMAGE_NAME }}:latest .

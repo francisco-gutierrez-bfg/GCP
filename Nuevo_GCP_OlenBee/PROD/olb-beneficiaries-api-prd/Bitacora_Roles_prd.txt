@@ -1,0 +1,133 @@
+Add service account with roles:
+===============================
+
+
+SERVICE_ACCOUNT1="olenbee-deployment-pipeline@olb-beneficiaries-api-prd-6530.iam.gserviceaccount.com"
+SERVICE_ACCOUNT2="clourun-olenbee@olb-beneficiaries-api-prd-6530.iam.gserviceaccount.com"
+PROJECT_ID="olb-beneficiaries-api-prd-6530"
+
+gcloud iam service-accounts create olenbee-deployment-pipeline \
+  --display-name "Olenbee Deployment Pipeline" \
+  --project "$PROJECT_ID"
+
+ROLES1=(
+    "roles/artifactregistry.admin"
+    "roles/artifactregistry.reader"
+    "roles/artifactregistry.repoAdmin"
+    "roles/artifactregistry.writer"
+    "roles/cloudsql.client"
+    "roles/iam.serviceAccountTokenCreator"
+    "roles/iam.serviceAccountUser"
+    "roles/iam.workloadIdentityUser"
+    "roles/logging.admin"
+    "roles/run.admin"
+    "roles/run.invoker"
+    "roles/storage.admin"
+    "roles/storage.objectAdmin"
+    "roles/storage.objectCreator"
+    "roles/storage.objectViewer"
+    "roles/workloadmanager.deploymentAdmin"
+    "roles/workloadmanager.evaluationAdmin"
+)
+
+for ROLE in "${ROLES1[@]}"; do
+    gcloud projects add-iam-policy-binding "$PROJECT_ID" \
+        --member="serviceAccount:$SERVICE_ACCOUNT1" \
+        --role="$ROLE"
+done
+
+---
+
+gcloud iam service-accounts create clourun-olenbee \
+  --display-name "Olenbee Deployment Pipeline" \
+  --project "$PROJECT_ID"
+
+ROLES1=(
+    "roles/cloudsql.client"
+    "roles/compute.networkUser"
+    "roles/run.admin"
+    "roles/run.invoker"
+    "roles/run.serviceAgent"
+)
+
+for ROLE in "${ROLES2[@]}"; do
+    gcloud projects add-iam-policy-binding "$PROJECT_ID" \
+        --member="serviceAccount:$SERVICE_ACCOUNT1" \
+        --role="$ROLE"
+done
+
+
+
+Create SQL instance:
+====================
+
+gcloud sql instances create olenbee-postgres- \
+    --database-version=POSTGRES_17 \
+    --tier=db-f1-micro \
+    --region=europe-west9 \
+    --no-assign-ip \
+#    --network=projects/olb-beneficiaries-api-prod/global/networks/prd-net \
+    --availability-type=REGIONAL \
+    --root-password="Xshd4hPh7AJUShh" && \
+gcloud sql databases create olenbeeappdata_prd --instance=olenbee-postgres-prd && \
+gcloud sql users create postgres --instance=olenbee-postgres-prd --password="Xshd4hPh7AJUShh"
+
+
+gcloud run deploy ms-appdata           
+    --image europe-west9-docker.pkg.dev/olb-beneficiaries-api-prd-6530/ms-appdata \         
+    --platform managed \
+    --region europe-west9 \
+    --vpc-connector olb-prd-subnet-europe-west9-private-serverless-connector \
+    --vpc-egress all-traffic \
+    --service-account clourun-olenbee@olb-beneficiaries-api-prd-6530.iam.gserviceaccount.com \
+    --add-cloudsql-instances olb-beneficiaries-api-prd-6530:europe-west9:olenbee-postgres-prd \        
+ #   --port 9090
+
+Disable Organization Policy called: Domain Restricted Sharing
+
+
+Adding network config to the cloud run instance:
+
+Cloud Run has what we call a service agent that needs permissions to deploy the service or job in the connector or subnet.
+First you need to be sure that you use the connector we have created in your networking configuration
+
+Inside Clñoud Run instance network configuration
+|
+Select:Connect to a VPC for outbound traffic
+ |
+ |__Selet: Use Serverless VPC Access connectors
+    |
+    |__Choose: olb-prd-network-glb-netspoke: Serverless VPC Access Connector “olb-prd-connector” (in host project “olb-netsp
+
+Then, we added an IAM role "Serverless VPC Access User" in the host project "olb-netspoke-prd" for the Cloud Run service agent which has this form : service-<PROJECT_NUMBER>@serverless-robot-prod.iam.gserviceaccount.com
+So in our case the project number is : 232450500396 thus our cloud run service agent is : service-232450500396@serverless-robot-prod.iam.gserviceaccount.com
+
+First check the roles for that SA:
+
+Example:
+
+gcloud projects get-iam-policy olb-netspoke-prd-39fa --format="json" | jq '.bindings[] | select(.members[]? | contains("service-232450500396@serverless-robot-prod.iam.gserviceaccount.com"))'
+{
+  "members": [
+    "serviceAccount:232450500396@cloudservices.gserviceaccount.com",
+    "serviceAccount:service-232450500396@serverless-robot-prod.iam.gserviceaccount.com"
+  ],
+  "role": "roles/vpcaccess.user"
+}
+
+If its not assined, please proceed to assign the role in the network project (olb-netspoke-prd-39fa):
+
+gcloud projects add-iam-policy-binding YOUR_PROJECT_ID \
+    --member="serviceAccount:service-<Project Number>@serverless-robot-prod.iam.gserviceaccount.com" \
+    --role="roles/editor"
+
+Example:
+
+gcloud projects add-iam-policy-binding olb-netspoke-prd-39fa \
+    --member="serviceAccount:service-232450500396@serverless-robot-prod.iam.gserviceaccount.com" \
+    --role="roles/editor"
+
+
+
+
+
