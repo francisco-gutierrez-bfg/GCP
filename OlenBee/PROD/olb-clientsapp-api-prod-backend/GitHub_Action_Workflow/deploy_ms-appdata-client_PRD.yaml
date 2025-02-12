@@ -1,0 +1,91 @@
+# Author: Francisco Gutierrez
+# Email: francisco.gutierrez@globallogic.com
+# Date: 2025-01-24
+# Description: This workflow file automates the build and deployment process for MS-APPDATA CLIENT PROD
+#              The image is being deployed to Gcloud Artifact Registry GCR/GAR
+#              The Cloud Run instance deployment is currently disabled until development team stabilizes the app
+#              So Cloud Run deployment must be manually pushed from developer's computer.
+
+name: ms-appdata client to GCP - PRODUCTION (Production branch)
+
+on:
+  push:
+    branches:
+      - production
+  pull_request:
+    types: [closed]
+    branches:
+      - production
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Information
+      run: |
+        echo "The name of your branch is ${{ github.ref }} and your repository is ${{ github.repository }}."
+    
+    - name: Environment variables
+      run: |
+        echo "Your project id is ${{ env.GCP_PROJECT_ID }} and region is ${{ env.GCP_REGION }}."
+    
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: List files in the repository
+      run: |
+        ls ${{ github.workspace }}
+    
+    - name: Check latest change in branch
+      run: |
+        git log
+
+    - name: Authenticate to GCP using Workload Identity Federation
+      id: auth
+      uses: google-github-actions/auth@v1
+      with:
+        workload_identity_provider: 'projects/192267921528/locations/global/workloadIdentityPools/olenbeegithubclientapi/providers/olenbeegithubprovider'
+        service_account: 'olenbee-deployment-pipeline@olb-clientsapp-api-prod.iam.gserviceaccount.com'
+
+    - name: Login to GCR/AR
+      run: |
+        docker login europe-west9-docker.pkg.dev -u oauth2accesstoken -p $(gcloud auth print-access-token)
+               
+    - name: Image ID to compare in GCP artifact registry
+      run: docker images   
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v2
+
+    - name: Build and Push image ${{ env.IMAGE_NAME }} using Buildx
+      run: |
+        docker buildx create --use
+        docker buildx build --platform linux/amd64 --push \
+          -t "${{ env.AR_URL }}/${{ env.IMAGE_NAME }}:${{ github.sha }}" ./
+
+    # Deshabilitado mientras se ajustan las configuraciones de la imagen del contenedor.
+    # Se ejecutará despliegue manual con el comando contenido en este step (gcloud run deploy.....)
+#    - name: Deploy CloudRun Instance to ${{ env.ENV }} GCP
+#      run: |
+#        gcloud run deploy ${{ env.SERVICE_NAME }} \
+#          --image europe-west9-docker.pkg.dev/olb-clientsapp-api-prod/clientsapp/clientsapp${{ github.sha }} \
+#          --region ${{ env.GCP_REGION }} \
+#          --platform managed \
+#          --service-account clourun-olenbee@olb-clientsapp-api-prod.iam.gserviceaccount.com \
+#          --vpc-connector projects/olb-clientsapp-api-prod/locations/europe-west9/connectors/olb-prd-network-glb-netspoke \
+#          --vpc-egress all-traffic \
+#          --port 8080 \
+#          --allow-unauthenticated
+
+env:
+  ENV: QA  
+  GCP_PROJECT_ID: olb-clientsapp-api-prod
+  AR_URL: europe-west9-docker.pkg.dev/olb-clientsapp-api-prod/clientsapp
+  GCP_REGION: europe-west9
+  SERVICE_NAME: clientsapp
+  IMAGE_NAME: clientsapp

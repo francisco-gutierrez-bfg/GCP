@@ -1,0 +1,66 @@
+Configurar componentes para el Load Balancer:
+---------------------------------------------
+
+backend-name=""
+neg-name=""
+cloud-run-service=""
+region="europe-west9"
+url-map=""
+ip-tag-name=""
+forwarding-rule-name=""
+client-http-proxy-name=""
+
+
+gcloud compute backend-services create $backend-name \
+    --global \
+    --load-balancing-scheme EXTERNAL_MANAGED
+
+gcloud compute network-endpoint-groups create $neg-name \
+    --region=$region \
+    --network-endpoint-type=SERVERLESS \
+    --cloud-run-service=$cloud-run-service
+
+gcloud compute backend-services create $backend-name \
+    --global \
+    --load-balancing-scheme=EXTERNAL_MANAGED
+
+gcloud compute backend-services add-backend $backend-name \
+    --global \
+    --network-endpoint-group=$neg-name \
+    --network-endpoint-group-region=$region
+
+
+Crear el Load Balancer:
+-----------------------
+
+Crear el URL Map
+Este mapa de URLs dirige el tráfico al backend configurado:
+
+gcloud compute url-maps create $url-map \
+    --default-service=$backend-name
+
+Crear el Proxy HTTP
+Se configura un proxy HTTP, sin cifrado SSL:
+
+gcloud compute target-http-proxies create $client-http-proxy-name \
+    --url-map=$url-map
+
+Crear una IP estática global
+Reservar una IP para el Load Balancer:
+
+gcloud compute addresses create $ip-tag-name \
+    --global
+
+Obtener la IP asignada:
+
+gcloud compute addresses describe $ip-tag-name --global --format="get(address)"
+
+
+Crear la Forwarding Rule para HTTP
+Configurar la regla de reenvío para el puerto 80:
+
+gcloud compute forwarding-rules create $forwarding-rule-name \
+    --global \
+    --target-http-proxy=$client-http-proxy-name \
+    --ports=80 \
+    --address=$ip-tag-name

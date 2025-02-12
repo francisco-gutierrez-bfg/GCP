@@ -33,3 +33,12 @@ gcloud run deploy backofficefront \
    --vpc-connector projects/olb-backoffice-api-prod/locations/europe-west9/connectors/olb-prd-network-glb-netspoke \
    --vpc-egress all-traffic \
    --allow-unauthenticated
+
+gcloud run deploy ms-appdata \
+   --image europe-west9-docker.pkg.dev/olb-beneficiaries-api-prod/ms-appdata/ms-appdata@sha256:0e88c194d2bf686afa2528a073cbe83c5571ed2676d6e0c8ece8258cafe3a872 \
+   --region europe-west9 \
+   --platform managed \
+   --service-account clourun-olenbee@olb-beneficiaries-api-prod.iam.gserviceaccount.com \
+   --vpc-connector projects/olb-clientsapp-api-prod/locations/europe-west9/connectors/olb-prd-network-glb-netspoke \
+   --vpc-egress all-traffic \
+   --allow-unauthenticated
