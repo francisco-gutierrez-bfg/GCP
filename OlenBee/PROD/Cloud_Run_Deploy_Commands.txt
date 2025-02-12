@@ -1,0 +1,35 @@
+gcloud run deploy clienstapp \
+    --image europe-west9-docker.pkg.dev/olb-clientsapp-api-prd/clientsapp/clientsapp:latest \
+    --region europe-west9 \
+    --platform managed \
+    --service-account clourun-olenbee@olb-clientsapp-api-prd.iam.gserviceaccount.com \
+    --vpc-connector projects/olb-clientsapp-api-prd/locations/europe-west9/connectors/olb-prd-network-glb-netspoke \
+    --vpc-egress all-traffic \
+    --allow-unauthenticated
+
+gcloud run deploy clientsapp-front \
+   --image europe-west9-docker.pkg.dev/olb-clientsapp-front-prod/clientsapp-front/clientsapp-front@sha256:0e88c194d2bf686afa2528a073cbe83c5571ed2676d6e0c8ece8258cafe3a872 \
+   --region europe-west9 \
+   --platform managed \
+   --service-account clourun-olenbee@olb-clientsapp-front-prod.iam.gserviceaccount.com \
+   --vpc-connector projects/olb-clientsapp-api-prod/locations/europe-west9/connectors/olb-prd-network-glb-netspoke \
+   --vpc-egress all-traffic \
+   --allow-unauthenticated
+
+gcloud run deploy backoffice \
+    --image europe-west9-docker.pkg.dev/olb-backoffice-api-prod/backoffice/backoffice@sha256:b35572a6cbebd86074582c40dbbeac147056941a5fee1d92f2a17065d9aa051d \
+    --region europe-west9 \
+    --platform managed \
+    --service-account clourun-olenbee@olb-backoffice-api-prod.iam.gserviceaccount.com \
+    --vpc-connector projects/olb-backoffice-api-prod/locations/europe-west9/connectors/olb-prd-network-glb-netspoke \
+    --vpc-egress all-traffic \
+    --allow-unauthenticated
+
+gcloud run deploy backofficefront \
+   --image europe-west9-docker.pkg.dev/olb-backoffice-front-prod/backofficefront/backofficefront@sha256:4f1dd64c14b1e780a581e5704c697bf4d18a09ebfcb39929346b3219b22881d6 \
+   --region europe-west9 \
+   --platform managed \
+   --service-account clourun-olenbee@olb-backoffice-front-prod.iam.gserviceaccount.com \
+   --vpc-connector projects/olb-backoffice-api-prod/locations/europe-west9/connectors/olb-prd-network-glb-netspoke \
+   --vpc-egress all-traffic \
+   --allow-unauthenticated
