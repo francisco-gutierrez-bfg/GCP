@@ -1,0 +1,141 @@
+=====================================================
+GitLab Runner Deployment on GCP VM (Docker Executor)
+=====================================================
+
+Overview:
+---------
+This setup provisions a free-tier compatible Google Cloud VM and installs two GitLab Runners, one for ForntEnd and one for Backend, 
+both configured to use the Docker executor. The runners are registered with GitLab and tagged 
+as "frontend" and "backend" to selectively run CI/CD jobs.
+
+Environment:
+------------
+- Google Cloud Project: backoffice-optimization-dev
+- Runner Host: f1-micro VM instance (eligible for free-tier usage)
+- Zone: us-central1-a
+- OS Image: Debian 11
+- Executor: Docker
+- GitLab URL: https://gitlab.com
+
+Environment Variables:
+-----------------------
+Before running the deployment command, define the following environment variables:
+
+PROJECT_ID="backoffice-optimization-dev"
+INSTANCE_NAME="gitlab-runners-gl"
+GITLAB_URL="https://gitlab.com"
+REGISTRATION_TOKEN_FRONTEND="token-for-frontend-runner"
+REGISTRATION_TOKEN_BACKEND="token-for-backend-runner"
+
+These values are used in the VM provisioning and runner registration process.
+
+Key Features:
+-------------
+- Lightweight f1-micro VM eligible for GCP Free Tier
+- Automatically installs Docker and GitLab Runner
+- Registers runners non-interactively with GitLab
+- Tagged with "frontend" and "backend" for selective job execution
+- Configured to only run tagged jobs (run-untagged=false)
+
+Usage:
+------
+1. Set your environment variables as shown above.
+2. Execute the `gcloud compute instances create` command provided in this documentation.
+3. The GitLab Runner will be ready and visible under your GitLab project/group runners.
+
+Security: (Tod Do)
+------------------
+Make sure to secure your GitLab registration token:
+- Consider using Secret Manager or encrypted environment files for storing sensitive data.
+- Avoid committing your token into version control.
+
+
+#######################
+Runners Implementation:
+#######################
+
+Set Variables:
+==============
+export PROJECT_ID="backoffice-optimization-dev"
+export INSTANCE_NAME="gitlab-runner-gl"
+export GITLAB_URL="https://gitlab.com"
+export REGISTRATION_TOKEN_FRONTEND="glrt-xjoQwz1A5Eu25gqiJo6g"
+export REGISTRATION_TOKEN_BACKEND="glrt-MUaMxp-EUMkhbZzZopJC"
+export REGISTRATION_TOKEN_DATA="glrt-MUaMxp-EUMkhbZzZopJC"
+
+Create the VM for Gitlab Runner:
+================================
+
+Gitlab Runners:
+***************
+gcloud compute instances create "$INSTANCE_NAME" \
+  --project="$PROJECT_ID" \
+  --zone=us-central1-a \
+  --machine-type=custom-2-4096 \
+  --image-family=debian-11 \
+  --image-project=debian-cloud \
+  --boot-disk-size=30GB \
+  --tags=gitlab-runner \
+  --metadata=startup-script='#! /bin/bash
+    apt-get update
+    apt-get install -y curl git unzip docker.io
+
+    # Enable Docker
+    systemctl enable docker
+    systemctl start docker
+
+    # Add GitLab Runner user
+    useradd --comment "GitLab Runner" --create-home gitlab-runner --shell /bin/bash
+    usermod -aG docker gitlab-runner
+
+    # Install GitLab Runner
+    curl -L --output /usr/local/bin/gitlab-runner https://gitlab-runner-downloads.s3.amazonaws.com/latest/binaries/gitlab-runner-linux-amd64
+    chmod +x /usr/local/bin/gitlab-runner
+
+    # Install and start GitLab Runner service
+    gitlab-runner install --user=gitlab-runner --working-directory=/home/gitlab-runner
+
+    # Modify the config.toml to add/update 'concurrent = 5'
+    sed -i 's/^concurrent = .*/concurrent = 5/' /etc/gitlab-runner/config.toml
+
+    # Register the runners
+
+    # Frontend
+    gitlab-runner register --non-interactive \
+      --url "'"$GITLAB_URL"'" \
+      --registration-token "'"$REGISTRATION_TOKEN_FRONTEND"'" \
+      --executor docker \
+      --description "FrontEnd Runner" \
+      --tag-list "frontend" \
+      --docker-image alpine:latest \
+      --docker-privileged \
+      --run-untagged=false \
+      --locked=false
+
+    # Backend
+    gitlab-runner register --non-interactive \
+      --url "'"$GITLAB_URL"'" \
+      --registration-token "'"$REGISTRATION_TOKEN_BACKEND"'" \
+      --executor docker \
+      --description "BackEnd Runner" \
+      --tag-list "backend" \
+      --docker-image alpine:latest \
+      --docker-privileged \
+      --run-untagged=false \
+      --locked=false   
+
+    # Data
+    gitlab-runner register --non-interactive \
+      --url "'"$GITLAB_URL"'" \
+      --registration-token "'"$REGISTRATION_TOKEN_DATA"'" \
+      --executor docker \
+      --description "Data Runner" \
+      --tag-list "backend" \
+      --docker-image alpine:latest \
+      --docker-privileged \
+      --run-untagged=false \
+      --locked=false  
+    
+    # Start GitLab Runner
+    gitlab-runner start
+  '

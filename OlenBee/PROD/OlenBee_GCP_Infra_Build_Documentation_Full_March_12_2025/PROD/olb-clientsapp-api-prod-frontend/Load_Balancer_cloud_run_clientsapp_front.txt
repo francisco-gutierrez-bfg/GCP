@@ -1,0 +1,80 @@
+Author: Francisco JAvier Gutierrez. 
+Senior Unix/Linux & Cloud Ops Engineer
+Globallogic.
+
+Set the Load Balancer components:
+---------------------------------
+
+backendname="clientsappfront"
+negname="bo-neg"
+cloudrunservice="clientsappfront"
+region="europe-west9"
+urlmap="clientsappfrontmap"
+iptagname="clientsappfrontip"
+forwardingrulename="clientsapplb"
+clienthttpproxyname="clientsappproxy"
+
+
+gcloud compute backend-services create $backendname \
+    --global \
+    --load-balancing-scheme EXTERNAL_MANAGED
+
+gcloud compute network-endpoint-groups create $negname \
+    --region=$region \
+    --network-endpoint-type=SERVERLESS \
+    --cloud-run-service=$cloudrunservice
+
+gcloud compute backend-services add-backend $backendname \
+    --global \
+    --network-endpoint-group=$negname \
+    --network-endpoint-group-region=$region
+
+
+Create the Load Balancer:
+-------------------------
+
+Create the URL Map
+------------------
+Este mapa de URLs dirige el tráfico al backend configurado:
+
+gcloud compute url-maps create $urlmap \
+    --default-service=$backendname
+
+Create the HTTP Proxy
+---------------------
+Se configura un proxy HTTP, sin cifrado SSL:
+
+gcloud compute target-http-proxies create $clienthttpproxyname \
+    --url-map=$urlmap
+
+gcloud compute url-maps add-path-matcher $urlmap \
+    --default-service=$backendname \
+    --path-matcher-name=signin-matcher \
+    --backend-service-path-rules="/signin=$backendname"
+
+gcloud compute url-maps add-host-rule $urlmap \
+    --hosts="*" \
+    --path-matcher-name=signin-matcher
+
+
+Create a static global IP
+-------------------------
+Reserve an IP for the Load Balancer:
+
+gcloud compute addresses create $iptagname \
+    --global
+
+Get the assigned IP:
+--------------------
+gcloud compute addresses describe $iptagname --global --format="get(address)"
+
+
+Create the Forwarding Rule for HTTP
+-----------------------------------
+Configure the forwarding rule for port 80:
+
+gcloud compute forwarding-rules create $forwardingrulename \
+    --global \
+    --target-http-proxy=$clienthttpproxyname \
+    --ports=80 \
+    --address=$iptagname

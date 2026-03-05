@@ -1,0 +1,46 @@
+########################################################
+Assign permissions/roles to a specific Globallogic user:
+########################################################
+
+GL_USER="gl.desired_user@globallogic.com"
+PROJECT_ID="backoffice-optimization-dev"
+
+Pre Requisites:
+---------------
+The user must exist in Workspace.
+
+Roles Example:
+--------------
+Please do not use all the following roles, choose wisely the roles needed for each user.
+
+ROLES1=(
+    "roles/artifactregistry.admin"
+    "roles/artifactregistry.reader"
+    "roles/artifactregistry.repoAdmin"
+    "roles/artifactregistry.writer"
+    "roles/cloudsql.client"
+    "roles/iam.serviceAccountTokenCreator"
+    "roles/iam.serviceAccountUser"
+    "roles/iam.workloadIdentityUser"
+    "roles/logging.admin"
+    "roles/run.admin"
+    "roles/run.invoker"
+    "roles/storage.admin"
+    "roles/storage.objectAdmin"
+    "roles/storage.objectCreator"
+    "roles/storage.objectViewer"
+    "roles/workloadmanager.deploymentAdmin"
+    "roles/workloadmanager.evaluationAdmin"
+    "roles/vpcaccess.user"
+    "roles/aiplatform.user"
+)
+
+
+Assign Roles to the desired user:
+----------------------------------
+
+for ROLE in "${ROLES1[@]}"; do
+    gcloud projects add-iam-policy-binding "$PROJECT_ID" \
+        --member="user:$GL_USER" \
+        --role="$ROLE"
+done

@@ -1,0 +1,11 @@
+PG:
+
+Usuarios:
+postgres: v=y[Glqh@;_}$]4
+test: est6_NO6bExM6&[$
+
+gcloud sql databases create vector-db --instance=backoffice-opt-dev && \
+gcloud sql users create postgres --instance=backoffice-opt-dev --password="v=y[Glqh@;_}$]4"
+
+
+

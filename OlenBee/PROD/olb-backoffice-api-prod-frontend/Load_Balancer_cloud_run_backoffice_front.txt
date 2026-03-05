@@ -1,0 +1,72 @@
+Configurar componentes para el Load Balancer:
+---------------------------------------------
+
+backendname="bobackend"
+negname="bo-neg"
+cloudrunservice="backofficefront"
+region="europe-west9"
+urlmap="backofficemap"
+iptagname="backofficeip"
+forwardingrulename="backofficelb"
+clienthttpproxyname="backofficeproxy"
+
+
+gcloud compute backend-services create $backendname \
+    --global \
+    --load-balancing-scheme EXTERNAL_MANAGED
+
+gcloud compute network-endpoint-groups create $negname \
+    --region=$region \
+    --network-endpoint-type=SERVERLESS \
+    --cloud-run-service=$cloudrunservice
+
+gcloud compute backend-services add-backend $backendname \
+    --global \
+    --network-endpoint-group=$negname \
+    --network-endpoint-group-region=$region
+
+
+Crear el Load Balancer:
+-----------------------
+
+Crear el URL Map
+Este mapa de URLs dirige el tráfico al backend configurado:
+
+gcloud compute url-maps create $urlmap \
+    --default-service=$backendname
+
+Crear el Proxy HTTP
+Se configura un proxy HTTP, sin cifrado SSL:
+
+gcloud compute target-http-proxies create $clienthttpproxyname \
+    --url-map=$urlmap
+
+gcloud compute url-maps add-path-matcher $urlmap \
+    --default-service=$backendname \
+    --path-matcher-name=signin-matcher \
+    --backend-service-path-rules="/signin=$backendname"
+
+gcloud compute url-maps add-host-rule $urlmap \
+    --hosts="*" \
+    --path-matcher-name=signin-matcher
+
+
+Crear una IP estática global
+Reservar una IP para el Load Balancer:
+
+gcloud compute addresses create $iptagname \
+    --global
+
+Obtener la IP asignada:
+
+gcloud compute addresses describe $iptagname --global --format="get(address)"
+
+
+Crear la Forwarding Rule para HTTP
+Configurar la regla de reenvío para el puerto 80:
+
+gcloud compute forwarding-rules create $forwardingrulename \
+    --global \
+    --target-http-proxy=$clienthttpproxyname \
+    --ports=80 \
+    --address=$iptagname

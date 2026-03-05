@@ -1,0 +1,13 @@
+{
+  "type": "service_account",
+  "project_id": "backoffice-optimization-dev",
+  "private_key_id": "854069b4c8910480ad41d4d3463fbaf6092a8ecc",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvwIBADANBgkqhkiG9w0BAQEFAASCBKkwggSlAgEAAoIBAQC2yry26PWlhJ00\nVOc22MweXJj6wqNIOSNvywRUMkyRNi9NZ/DLSKDNtCcVTTRJDatPs5Bk4X/Q3m9Q\nE3dxLnth7bzWscs5oC8G+0kzwM1GTCl6a9KGkUZHRiBxaGO5IYm6bEO9dQk+J5YT\n7t4Wd1KGtx2q5cOsvWD1lbN9kN05zLlZGInoHOBUMLUWpiyzDmIEVtktckyoPtwu\nlRBdVGOOO79wmELBaOV3ki+M598/g/MtvDvj+lKI1VmLXae154/wAa4MfuycXukd\nmh/q+3dIZu9GGPhnqpnTEVwwpdr0tI4fkiHIyIK+LNlUf7VExwkgSo30pZV7t0Fm\nAXAfOHWbAgMBAAECggEAJYC28zgcnhb1QfVhcslMJ7aL1Hb2lSzT7m3St4uSVgCt\n982pg6ulAk9B7YbngU2CplmK+Iejd7ELWXyE9v24ZsEmC05zCaGpxF7uB+Y4t4GM\nyQcyLFXF+32RznLCcwtEfLEVvNs0SEJK8lAB1M4qamVLevKlEN3R9NEAAHUmTmMv\nmDOyCHYnWCr8UhR04eg3RcXR8imgXOjIGqL+5KM+gcGMneYjHxQBwduFHLNWVcs9\nDISBt97OS+oS7T5GrMUaW4GYmYV4kaAuC2WiCY92bF9WJ7SPL68x7QoF3mJ0Lecr\nlCDoouku8urPgap9NCA12iYIGc8w9zNNwoPtfv+tUQKBgQDgkFlQEGT7xIoqzgyG\n/0LAEV4Iz1AF5Cti5sZ15PXPi02VTpFYDR7CcRJyterDvHhAGSWB6+Pmz1Q4CRj3\nyFx2RNQLbtFi8i/kG/4Dtw/dGWvXepKoTpYsmpMNskERcp2Xh2ELD4hD+Y16hyV6\nlwY5mGXbsjbxd7oxFuWkgOOofwKBgQDQYWqJFJoUzNYDsd8o6bs8jAaQxwJu2iPA\nf3TcqDsug467wS4A9PaKB5Q0jbe1jg71TZmxKnSCSpNQ96P/pNFyiBvtRB3UKbtE\nmuF/3nG20k2PdICVjEwavR7xAP70h5+ZDLOuvEM3zD4mBLfil5CQ4qLQ9B5lJBVW\n3xad1K9E5QKBgQDPREw6+rbKLjA8q+uiGi446o65YOeCWIO3CDu7CvXadr/IBDlg\nZNO0MfsOB1xFB0qSFuOok9nI6inYgoUaBkNZIdP5LXJzege76h48vZUVxGXl/4sn\nb0lqp8z8wj8OZJSSDHEEbXSfENGFewGbsZMcS84PxeCyZIhk0LZqbFAz7wKBgQCd\nSNp8C6PdjVsAwPJ7VCiyo9KU1tHcUCTqOIpBv22kR0KmL0MFD+FDAEN6g3mlvUtH\nFsKqOixk59tYIwOTg5lgBKJnraGCMdmbB/irZoCYiRZn8HzZ5GLRT+yZ5rGKaxAp\nGrBJdOqbpDtIwQj3LIW/BoH0jD6hAuJkhtDwYsfEjQKBgQC29fq7JBwpDRMSv9IU\n8ImeyfA3QV9NRXkIWquSvKl99QRUrKHJXjUXgjOu5PcuyhZ1Fij5Z8M/4szn62Wh\nMzKIJhFbS0YtZ8tTgBzaGub0gimJ8AxSHLd2qcdA5NIjgIX8+Vazcm5sEUb2lTFY\neYDvYeGOwXDgRpFL+nLO8CTROw==\n-----END PRIVATE KEY-----\n",
+  "client_email": "glia-deployment-pipeline@backoffice-optimization-dev.iam.gserviceaccount.com",
+  "client_id": "114770638443668794794",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/glia-deployment-pipeline%40backoffice-optimization-dev.iam.gserviceaccount.com",
+  "universe_domain": "googleapis.com"
+}

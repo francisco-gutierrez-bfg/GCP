@@ -1,0 +1,250 @@
+Author: Francisco JAvier Gutierrez. 
+Senior Unix/Linux & Cloud Ops Engineer
+Globallogic.
+
+Activities to deploy configurations into project olb-backoffice-front-prd:
+===========================================================================
+
+Enable the following API Products/Services:
+-------------------------------------------
+
+Project: olb-backoffice-front-prod
+Link: https://console.cloud.google.com/home/dashboard?inv=1&invt=AbpXzA&project=olb-backoffice-front-prod
+      
+
+Project Location:
+
+olenbee.com (Organization)
+|
+|__ Standard (Main Folder)
+   |
+   |__ PRD (Subfolder)
+       |
+       |__Olenbee-BO (Subfolder)
+          |
+          |__Backend
+             |
+             |__olb-backoffice-front-prod (Project)
+
+
+Enabling API's:
+---------------
+
+api_name:
+=========
+Enable compute API                        --> OK
+Enable Network API                        --> OK
+Enable SQL API                            --> OK
+Enable GCR API                            --> OK
+Enable Artifact Registry API              --> OK
+Identity platform                         --> OK
+Enable run.googleapis.com                 --> OK
+Enable vpcaccess                          --> OK
+Enable cloudbuild.googleapis.com          --> OK
+Enable artifactregistry.googleapis.com    --> OK
+Enable containerregistry.googleapis.com   --> OK
+Enable run.googleapis.com                 --> OK
+Enable vpcaccess.googleapis.com           --> OK
+Enable sqladmin.googleapis.com            --> OK
+
+Command:
+
+gcloud services enable compute.googleapis.com \
+    servicenetworking.googleapis.com \
+    sqladmin.googleapis.com \
+    containerregistry.googleapis.com \
+    artifactregistry.googleapis.com \
+    identitytoolkit.googleapis.com \
+    run.googleapis.com \
+    vpcaccess.googleapis.com \
+    cloudbuild.googleapis.com \
+    vpcaccess.googleapis.com
+
+
+Add service accounts with roles:
+--------------------------------
+
+SERVICE_ACCOUNT1="olenbee-deployment-pipeline@olb-backoffice-front-prod.iam.gserviceaccount.com"
+SERVICE_ACCOUNT2="clourun-olenbee@olb-backoffice-front-prod.iam.gserviceaccount.com"
+PROJECT_ID="olb-backoffice-front-prod"
+
+gcloud iam service-accounts create olenbee-deployment-pipeline \
+  --display-name "Olenbee Deployment Pipeline" \
+  --project "$PROJECT_ID"
+
+ROLES1=(
+    "roles/artifactregistry.admin"
+    "roles/artifactregistry.reader"
+    "roles/artifactregistry.repoAdmin"
+    "roles/artifactregistry.writer"
+    "roles/cloudsql.client"
+    "roles/iam.serviceAccountTokenCreator"
+    "roles/iam.serviceAccountUser"
+    "roles/iam.workloadIdentityUser"
+    "roles/logging.admin"
+    "roles/run.admin"
+    "roles/run.invoker"
+    "roles/storage.admin"
+    "roles/storage.objectAdmin"
+    "roles/storage.objectCreator"
+    "roles/storage.objectViewer"
+    "roles/workloadmanager.deploymentAdmin"
+    "roles/workloadmanager.evaluationAdmin"
+)
+
+for ROLE in "${ROLES1[@]}"; do
+    gcloud projects add-iam-policy-binding "$PROJECT_ID" \
+        --member="serviceAccount:$SERVICE_ACCOUNT1" \
+        --role="$ROLE"
+done
+
+---
+
+gcloud iam service-accounts create clourun-olenbee \
+  --display-name "Cloud Run Deployment SA" \
+  --project "$PROJECT_ID"
+
+ROLES2=(
+    "roles/cloudsql.client"
+    "roles/compute.networkUser"
+    "roles/run.admin"
+    "roles/run.invoker"
+    "roles/run.serviceAgent"
+)
+
+for ROLE in "${ROLES2[@]}"; do
+    gcloud projects add-iam-policy-binding "$PROJECT_ID" \
+        --member="serviceAccount:$SERVICE_ACCOUNT2" \
+        --role="$ROLE"
+done
+
+Agregar permisos de vpaccess.user al service agent del proyecto:
+Each ´project service agent come in the following format:
+  serviceAccount:service-<project number>@serverless-robot-prod.iam.gserviceaccount.com
+
+gcloud projects add-iam-policy-binding olb-netspoke-prd-39fa   --member="serviceAccount:service-819191125803@serverless-robot-prod.iam.gserviceaccount.com"   --role="roles/vpcaccess.user"
+
+
+Check the VPC
+-------------
+This is a shared VPC wil be used.
+
+This shared VPC comes form a project called "olb-prd-network-glb-netspoke" which resides inside "STANDARD/Infrasstructure/network" folder.
+
+VPC Location:
+
+olenbee.com (Organization)
+|
+|__ Standard (Main Folder)
+   |
+   |__ Infrastructure (Subfolder)
+       |
+       |__Network (Subfolder)
+          |
+          |__olb-netspoke-prd (Project)
+              |
+              |__ VPC confguration: https://console.cloud.google.com/networking/networks/details/olb-prd-network-glb-netspoke?project=olb-netspoke-prd-39fa&invt=Aboyng
+
+
+## DB No needed for now ##
+SQL Service and DB
+------------------
+ Database name: olenbee-prd
+ Users:
+  - postgres: Xy7BBYPEpX7K5Ml
+  - DB name:  olenbeeaclientappfront_prd
+
+Could SQL:
+----------
+
+gcloud sql instances create olenbee-clientfornt-postgres-prd \
+    --database-version=POSTGRES_16 \
+    --tier=db-f1-micro \
+    --region=europe-west9 \
+    --no-assign-ip \
+    --network=projects/olb-netspoke-prd-39fa/global/networks/olb-prd-network-glb-netspoke \
+    --availability-type=REGIONAL \
+    --root-password="hy7BVJPEpT7K5zL"
+    
+gcloud sql databases create olenbeeaclientappfront_prd --instance=olenbee-client-postgres-prd && \
+gcloud sql users create postgres --instance=olenbee-postgres-prd --password="hy7BVJPEpT7K5zL"
+
+
+Connection: 
+"DefaultConnection": "Host=10.20.165.2;Database=olenbeeappdata_prd;Username=postgres;Password=hy7BVJPEpT7K5zL"
+
+
+Docker build and push commands:
+-------------------------------
+You can create images locally and push them, to do so, please follow the below example:
+
+1- Loign your gcloud cli:
+   gloud auth login
+
+2- Create a Dockerfile in your system.
+
+3- Build the image:
+   Important: The image must have the name of your repo as follows
+   Docker build command sample:
+    docker build -t europe-west9-docker.pkg.dev/olb-backoffice-front-prod/backofficefront
+
+4- Push the image:
+   Docker push command sample: 
+    docker push europe-west9-docker.pkg.dev/olb-backoffice-front-prod/backofficefront:latest
+
+
+GAR (Artifact Registry Repository):
+-----------------------------------
+GAR must be enabled and ready to create repos.
+
+To create a repo:
+
+Repo name: backofficefront
+Region: europe-west9
+Encryption; From Google
+Format: Docker
+Mode: Standard
+Location type: Region
+Inmutable Image tags: Disabled
+Clean policy; Test
+Vulnerability scann: disabled
+
+gcloud artifacts repositories create clientsapp \
+  --project=olb-backoffice-front-prod \
+  --location=europe-west9 \
+  --repository-format=docker \
+  --description="Docker repository for backoffice front" \
+  --encryption-key="google-managed" \
+  --mode=standard \
+  --location-type=region \
+  --immutable-tags=false \
+  --vulnerability-scan=disabled
+
+
+
+Workload identity config GCP:
+-----------------------------
+There is a document on the same folder where these instructions reside.
+The file is called: Workload_Identity_Configuration.txt
+
+Or you can go to the following references:
+Ref: 
+roger-that-dev.medium.com/push-code-with-github-actions-to-google-clouds-artifact-registry-60d256f8072f
+alexanderhose.com/how-to-integrate-github-actions-with-google-cloud-platform/
+
+
+Cloud Run Deployment:
+---------------------
+
+GitHub should deploy the image into GAR repository (Google Artifact Registry)
+
+gcloud run deploy backofficefront \
+   --image europe-west9-docker.pkg.dev/olb-backoffice-front-prod/backofficefront/backofficefront:latest \
+   --region europe-west9 \
+   --platform managed \
+   --service-account clourun-olenbee@olb-backoffice-front-prod.iam.gserviceaccount.com \
+   --vpc-connector projects/olb-backoffice-api-prod/locations/europe-west9/connectors/olb-prd-network-glb-netspoke \
+   --vpc-egress all-traffic \
+   --allow-unauthenticated
+
+

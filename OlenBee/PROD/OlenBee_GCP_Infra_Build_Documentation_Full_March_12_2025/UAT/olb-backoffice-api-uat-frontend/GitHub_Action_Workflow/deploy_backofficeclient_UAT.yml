@@ -1,0 +1,96 @@
+# Author: Francisco Gutierrez
+# Email: francisco.gutierrez@globallogic.com
+# Date: 2025-01-24
+# Description: This workflow file automates the build and deployment process for BACKOFFICE FRONT UAT
+#              The image is being deployed to Gcloud Artifact Registry GCR/GAR
+#              The Cloud Run instance deployment is currently disabled until development team stabilizes the app
+#              So Cloud Run deployment must be manually pushed from developer's computer.
+
+name: ms-appdata front to GCP - UAT (UAT branch)
+
+on:
+  push:
+    branches:
+      - UAT
+  pull_request:
+    types: [closed]
+    branches:
+      - UAT
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Information
+      run: |
+        echo "The name of your branch is ${{ github.ref }} and your repository is ${{ github.repository }}."
+    
+    - name: Environment variables
+      run: |
+        echo "Your project id is ${{ env.GCP_PROJECT_ID }} and region is ${{ env.GCP_REGION }}."
+    
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: List files in the repository
+      run: |
+        ls ${{ github.workspace }}
+    
+    - name: Check latest change in branch
+      run: |
+        git log
+    - name: Authenticate to GCP using Workload Identity Federation
+      id: auth
+      uses: google-github-actions/auth@v1
+      with:
+        workload_identity_provider: 'projects/358431299727/locations/global/workloadIdentityPools/olenbeegithubpoolbckfront/providers/olenbeegithubprovider'
+        service_account: 'olenbee-deployment-pipeline@olb-backoffice-api-uat-front.iam.gserviceaccount.com'
+
+    - name: Login to GCR/AR
+      run: |
+        docker login europe-west9-docker.pkg.dev -u oauth2accesstoken -p $(gcloud auth print-access-token)
+               
+    - name: Image ID to compare in GCP artifact registry
+      run: docker image ls 
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v2
+
+    - name: Build and Push image ${{ env.IMAGE_NAME }} using Buildx
+      run: |
+        docker buildx create --use
+        docker buildx build --build-arg ENV_FILE=.env.uat --platform linux/amd64 --push \
+          -t "${{ env.AR_URL }}/${{ env.IMAGE_NAME }}:${{ github.sha }}" ./
+    # Disabled, this command should be used th first time the container is going to be deployed into the GCP project,
+    # then, the imstance just needs to be updated, by deploying changed from the new GCR/GAR container image.
+    # This command can be triggered manually triggered from GCLOUD Cli by following the documented procedures (Confluence)
+    #- name: Deploy CloudRun Instance to ${{ env.ENV }} GCP
+    #  run: |
+    #    gcloud run deploy ${{ env.SERVICE_NAME }} \
+    #      --image europe-west9-docker.pkg.dev/olb-backoffice-api-uat-front/backofficefront/backofficefront:${{ github.sha }} \
+    #      --region ${{ env.GCP_REGION }} \
+    #      --platform managed \
+    #      --service-account clourun-olenbee@olb-backoffice-api-uat-front.iam.gserviceaccount.com \
+    #      --vpc-connector projects/olb-backoffice-api-uat-front/locations/europe-west9/connectors/olb-uat-network-glb-netspoke \
+    #      --vpc-egress all-traffic \
+    #      --port 8080 \
+    #      --allow-unauthenticated
+
+    # This step will update the cloud run instance with the new image deployed into GAR/GCR in order to refresh changes into the container 
+    - name: Update CloudRun Instance with the new image ==> europe-west9-docker.pkg.dev/olb-backoffice-api-uat-front/backofficefront/backofficefront:${{ github.sha }}
+      run: |
+         gcloud run services update ${{ env.SERVICE_NAME }} \
+           --region ${{ env.GCP_REGION }} \
+           --image europe-west9-docker.pkg.dev/olb-backoffice-api-uat-front/backofficefront/backofficefront:${{ github.sha }}
+env:
+  ENV: uat
+  GCP_PROJECT_ID: olb-backoffice-api-uat-front
+  AR_URL: europe-west9-docker.pkg.dev/olb-backoffice-api-uat-front/backofficefront
+  GCP_REGION: europe-west9
+  SERVICE_NAME: backofficefront
+  IMAGE_NAME: backofficefront

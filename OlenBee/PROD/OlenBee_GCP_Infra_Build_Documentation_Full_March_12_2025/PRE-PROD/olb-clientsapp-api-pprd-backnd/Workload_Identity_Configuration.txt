@@ -1,0 +1,53 @@
+Author: Francisco JAvier Gutierrez. 
+Senior Unix/Linux & Cloud Ops Engineer
+Globallogic.
+
+Workload Identity Configuration Procedure
+=========================================
+
+Setting up Identity Federation for GitHub Actions
+To use the new GitHub Actions auth action, you need to set up and configure Workload Identity 
+Federation by creating a Workload Identity Pool and Workload Identity Provider:
+
+From GCLOUD CLI (command line)
+------------------------------
+
+Setting Vars:
+-------------
+PROJECT_ID="olb-clientsapp-api-pprd-backnd"
+POOL_NAME="olenbeegithubclientapi"
+PROVIDER_NAME="olenbeegithubprovider"
+
+Creating the Pool:
+------------------
+gcloud iam workload-identity-pools create "${POOL_NAME}"\
+  --project="${PROJECT_ID}" \
+  --location="global" \
+  --display-name="${POOL_NAME}"
+
+Creating the provider:
+----------------------
+gcloud iam workload-identity-pools providers create-oidc "${PROVIDER_NAME}" \
+  --project="${PROJECT_ID}" \
+  --location="global" \
+  --workload-identity-pool="${POOL_NAME}" \
+  --display-name="${PROVIDER_NAME}" \
+  --attribute-mapping="google.subject=assertion.sub,attribute.repository_owner=assertion.repository_owner" \
+  --issuer-uri="https://token.actions.githubusercontent.com" \
+  --attribute-condition='attribute.repository_owner.contains("olenbee")'
+
+
+Adding the principal to the service account that is going to be used to deploy from GitHub
+------------------------------------------------------------------------------------------
+
+gcloud iam service-accounts add-iam-policy-binding "olenbee-deployment-pipeline@olb-clientsapp-api-pprd-backnd.iam.gserviceaccount.com" \
+  --project="olb-clientsapp-api-pprd-backnd" \
+  --role="roles/iam.workloadIdentityUser" \
+  --member="principal://iam.googleapis.com/projects/761931869368/locations/global/workloadIdentityPools/olenbeegithubclientapi/subject/SUBJECT_ATTRIBUTE_VALUE"
+
+gcloud iam service-accounts add-iam-policy-binding "olenbee-deployment-pipeline@olb-clientsapp-api-pprd-backnd.iam.gserviceaccount.com" \
+  --project="olb-clientsapp-api-pprd-backnd" \
+  --role="roles/iam.workloadIdentityUser" \
+  --member="principalSet://iam.googleapis.com/projects/761931869368/locations/global/workloadIdentityPools/olenbeegithubclientapi/attribute.repository_owner/olenbee"
+
+

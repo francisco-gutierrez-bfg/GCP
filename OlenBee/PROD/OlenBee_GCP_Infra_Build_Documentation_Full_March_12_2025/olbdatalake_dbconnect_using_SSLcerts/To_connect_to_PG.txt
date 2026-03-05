@@ -1,0 +1,29 @@
+Connect to your Cloud SQL instance using SSL/TLS and client certificate verification
+If ssl_mode on your Cloud SQL instance is configured to TRUSTED_CLIENT_CERTIFICATE_REQUIRED, then you must also provide a verified client identity when you log in.
+
+To connect using SSL/TLS certificates with client verification, you need the following:
+
+A client public key certificate in a client-cert.pem file.
+A client private key in a client-key.pem file.
+In addition, to let the client verify the server's identity for mutual authentication, specify the server certificate server-ca.pem.
+
+Note:
+=====
+SSL Certificates and the key are in the same folder as this document.
+
+In order to connect to the Postgres DB, please run the following command:
+=========================================================================
+psql "sslmode=verify-ca sslrootcert=server-ca.pem \
+      sslcert=client-cert.pem sslkey=client-key.pem \
+      hostaddr=34.79.128.155 \
+      user=postgres dbname=app_db"
+
+/¡\ Password will be requested... /!\
+
+In case you decide to include the password, add the "passwrod" flag as follows:
+==============================================================================
+
+psql "sslmode=verify-ca sslrootcert=server-ca.pem \
+      sslcert=client-cert.pem sslkey=client-key.pem \
+      hostaddr=34.79.128.155 \
+      user=globallogic dbname=app_db password=<your password goes here>"

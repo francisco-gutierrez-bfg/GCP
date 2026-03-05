@@ -1,0 +1,51 @@
+Author: Francisco JAvier Gutierrez. 
+Senior Unix/Linux & Cloud Ops Engineer
+Globallogic.
+
+Workload Identity Configuration Procedure
+=========================================
+
+Setting up Identity Federation for GitHub Actions
+To use the new GitLab Actions auth action, you need to set up and configure Workload Identity 
+Federation by creating a Workload Identity Pool and Workload Identity Provider:
+
+From GCLOUD CLI (command line)
+------------------------------
+
+Setting Vars:
+-------------
+PROJECT_ID="backoffice-optimization-dev"
+POOL_NAME="gliagithubpool"
+PROVIDER_NAME="gliagitlabprovider"
+
+Creating the Pool:
+------------------
+gcloud iam workload-identity-pools create "${POOL_NAME}"\
+  --project="${PROJECT_ID}" \
+  --location="global" \
+  --display-name="${POOL_NAME}"
+
+Creating the provider:
+----------------------
+gcloud iam workload-identity-pools providers create-oidc "${PROVIDER_NAME}" \
+  --project="${PROJECT_ID}" \
+  --location="global" \
+  --workload-identity-pool="${POOL_NAME}" \
+  --display-name="${PROVIDER_NAME}" \
+  --attribute-mapping="google.subject=assertion.sub,attribute.repository_owner=assertion.repository_owner" \
+  --issuer-uri="https://gitlab.com" \
+  --attribute-condition='attribute.repository_owner.contains("glia")'
+
+
+Adding the principal to the service account that is going to be used to deploy from GitLab
+------------------------------------------------------------------------------------------
+
+gcloud iam service-accounts add-iam-policy-binding "gl-ia-deployment-pipeline@<project_name>.iam.gserviceaccount.com" \
+  --project="${PROJECT_ID}" \
+  --role="roles/iam.workloadIdentityUser" \
+  --member="principal://iam.googleapis.com/projects/<project id from the principal on worloak pool>/locations/global/workloadIdentityPools/gliagithubpool/subject/SUBJECT_ATTRIBUTE_VALUE"
+
+gcloud iam service-accounts add-iam-policy-binding "gl-ia-deployment-pipeline@${PROJECT_ID}.iam.gserviceaccount.com" \
+  --project="${PROJECT_ID}" \
+  --role="roles/iam.workloadIdentityUser" \
+  --member="principalSet://iam.googleapis.com/projects/943792741697/locations/global/workloadIdentityPools/gliagitlabpool/attribute.repository_owner/glia"

@@ -1,0 +1,22 @@
+#!/bin/bash
+
+# Developed by Francisco Gutierrez
+# GlobalLogic 2025
+
+# Prereqs
+# A bucket called "pg-db-backups" must be created prior to run the script.
+
+INSTANCE_NAME="xxxxxxxxx" # <-- Type instance name
+DB_NAME="bdbdbdbdbd" # <-- Type the database name
+
+# Extract 'prod', 'dev', 'QA', 'preprod', etc.. from the instance name
+ENV=$(echo "$INSTANCE_NAME" | grep -oE 'prod|dev|QA|preprod')
+
+# Build backup file name
+BACKUP_FILE="backup-${DB_NAME}-${ENV}-$(date +%Y%m%d).sql.gz"
+
+# Run the export
+gcloud sql export sql "$INSTANCE_NAME" \
+  "gs://pg-db-backups/${BACKUP_FILE}" \
+  --database="$DB_NAME" \
+  --offload
